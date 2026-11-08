@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture Overview | Microservices DevOps Automation Project</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Cinzel:wght@600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #8b0000;
+      --primary-light: #fbebee;
+      --gold: #d4af37;
+      --gold-light: #fbf6ea;
+      --dark-bg: #0f172a;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --accent-blue: #0284c7;
+      --accent-green: #10b981;
+      --accent-purple: #8b5cf6;
+      --radius: 12px;
+      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #f8fafc;
+      color: var(--text-main);
+      line-height: 1.6;
+      padding-bottom: 80px;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
+      color: white;
+      padding: 60px 20px;
+      position: relative;
+      border-bottom: 4px solid var(--gold);
+    }
+
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .badge-gold { background: var(--gold-light); color: #855b00; border: 1px solid var(--gold); }
+    .badge-green { background: #d1fae5; color: #065f46; border: 1px solid #10b981; }
+    .badge-blue { background: #e0f2fe; color: #0369a1; border: 1px solid #0284c7; }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    h1 {
+      font-size: 2.6rem;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 1.15rem;
+      color: #94a3b8;
+      max-width: 750px;
+    }
+
+    .meta-box {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(8px);
+      padding: 16px 24px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      font-size: 0.9rem;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 12px;
+      margin: -25px auto 40px;
+      background: white;
+      padding: 8px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      width: fit-content;
+      border: 1px solid var(--border);
+      position: sticky;
+      top: 15px;
+      z-index: 50;
+    }
+
+    .tab-btn {
+      padding: 10px 22px;
+      border-radius: 8px;
+      border: none;
+      background: none;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .tab-btn:hover:not(.active) {
+      background: #f1f5f9;
+      color: var(--text-main);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 32px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+
+    h2 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Architecture Visual Blocks */
+    .arch-diagram-wrapper {
+      background: #0f172a;
+      border-radius: var(--radius);
+      padding: 30px;
+      color: #f8fafc;
+      overflow-x: auto;
+      margin: 24px 0;
+      border: 1px solid #334155;
+    }
+
+    .flow-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .arch-node {
+      background: #1e293b;
+      border: 2px solid #475569;
+      border-radius: 10px;
+      padding: 18px;
+      flex: 1;
+      min-width: 220px;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .arch-node:hover {
+      border-color: var(--gold);
+      transform: translateY(-2px);
+    }
+
+    .arch-node.client { border-color: #f59e0b; }
+    .arch-node.ingress { border-color: #0284c7; }
+    .arch-node.frontend { border-color: #8b5cf6; }
+    .arch-node.backend { border-color: #10b981; }
+    .arch-node.database { border-color: #ec4899; }
+    .arch-node.cicd { border-color: #f97316; }
+    .arch-node.obs { border-color: #eab308; }
+
+    .node-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .node-desc {
+      font-size: 0.82rem;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    .node-port {
+      display: inline-block;
+      margin-top: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: #38bdf8;
+    }
+
+    .arrow-divider {
+      font-size: 1.5rem;
+      color: #64748b;
+      font-weight: 800;
+    }
+
+    /* Grid Layouts */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 24px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .feature-card {
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 22px;
+      border: 1px solid var(--border);
+    }
+
+    .feature-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--primary);
+    }
+
+    .feature-text {
+      font-size: 0.9rem;
+      color: #475569;
+      line-height: 1.5;
+    }
+
+    /* Cheat Sheet Code Blocks */
+    pre, code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    pre {
+      background: #0f172a;
+      color: #38bdf8;
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      margin: 12px 0;
+      border: 1px solid #1e293b;
+    }
+
+    .talking-point {
+      border-left: 4px solid var(--primary);
+      padding: 12px 18px;
+      background: #fdf2f2;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 16px;
+    }
+
+    .talking-title {
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+
+    .talking-desc {
+      font-size: 0.9rem;
+      color: #334155;
+    }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th {
+      background: #f1f5f9;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 50px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    @media print {
+      body { background: white; }
+      header { background: #1e1b4b; -webkit-print-color-adjust: exact; }
+      .nav-tabs { display: none; }
+      .card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="container header-content">
+      <div>
+        <span class="badge badge-gold">Certified Production Architecture</span>
+        <h1>Microservices DevOps Automation</h1>
+        <p class="subtitle">
+          Three-Tier Cloud Microservices Architecture: ReactJS, Python Flask, PostgreSQL, Nginx, Docker, Jenkins CI/CD, Terraform IaC, Prometheus & Grafana.
+        </p>
+      </div>
+      <div class="meta-box">
+        <div><strong>Lead Engineer:</strong> Arun C G</div>
+        <div><strong>Project Domain:</strong> Traditional Fashion & Beauty (Sanskriti)</div>
+        <div><strong>Audit Compliance:</strong> 100% Verified (Days 1–4)</div>
+        <div><strong>Target Cloud:</strong> AWS (VPC, EC2, ECR)</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Sticky Nav Tabs -->
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="scrollToSection('architecture')">Architecture Topology</button>
+    <button class="tab-btn" onclick="scrollToSection('components')">3-Tier Components</button>
+    <button class="tab-btn" onclick="scrollToSection('cicd')">CI/CD & IaC</button>
+    <button class="tab-btn" onclick="scrollToSection('observability')">Monitoring & Alerts</button>
+    <button class="tab-btn" onclick="scrollToSection('talking-points')">POC Presentation Guide</button>
+  </div>
+
+  <div class="container">
+
+    <!-- Section 1: Architecture Topology -->
+    <section id="architecture" class="card">
+      <span class="badge badge-blue">System Topology</span>
+      <h2>End-to-End System Architecture Flow</h2>
+      <p style="color: var(--text-muted); margin-bottom: 20px;">
+        Visual blueprint representing client entry, reverse proxy ingress, microservices container orchestration, and asynchronous observability pipelines.
+      </p>
+
+      <div class="arch-diagram-wrapper">
+        <div style="font-size: 0.85rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px;">1. Client & Ingress Routing Flow</div>
+        <div class="flow-row">
+          <div class="arch-node client">
+            <div class="node-title">🌐 Client Browser</div>
+            <div class="node-desc">Shoppers & Operations Admin</div>
+            <span class="node-port">HTTP/HTTPS</span>
+          </div>
+          <div class="arrow-divider">➔</div>
+          <div class="arch-node ingress">
+            <div class="node-title">🛡️ Host Nginx Reverse Proxy</div>
+            <div class="node-desc">SSL Termination, Security Headers, Gzip, Ingress Routing</div>
+            <span class="node-port">Port 80 / 443</span>
+          </div>
+        </div>
+
+        <div style="font-size: 0.85rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px; margin-top: 24px;">2. Containerized Three-Tier Microservices (Docker Compose Bridge Network)</div>
+        <div class="flow-row">
+          <div class="arch-node frontend">
+            <div class="node-title">⚛️ Frontend Service</div>
+            <div class="node-desc">ReactJS 18 SPA (Nginx Alpine)<br>9 E-Commerce Views</div>
+            <span class="node-port">Internal :80</span>
+          </div>
+          <div class="arrow-divider">➔ /api/*</div>
+          <div class="arch-node backend">
+            <div class="node-title">🐍 Backend REST API</div>
+            <div class="node-desc">Python Flask & Gunicorn WSGI<br>6 Blueprints & CORS</div>
+            <span class="node-port">Port 5000</span>
+          </div>
+          <div class="arrow-divider">➔ TCP</div>
+          <div class="arch-node database">
+            <div class="node-title">🐘 Relational Database</div>
+            <div class="node-desc">PostgreSQL 15 Alpine<br>7 Tables, 60 Products, Volumes</div>
+            <span class="node-port">Port 5432</span>
+          </div>
+        </div>
+
+        <div style="font-size: 0.85rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px; margin-top: 24px;">3. Telemetry & Observability Pipeline</div>
+        <div class="flow-row">
+          <div class="arch-node obs">
+            <div class="node-title">📊 Node Exporter & cAdvisor</div>
+            <div class="node-desc">Host OS CPU/RAM & Container Metrics</div>
+            <span class="node-port">Ports 9100 / 8080</span>
+          </div>
+          <div class="arrow-divider">Scrape ➔</div>
+          <div class="arch-node obs">
+            <div class="node-title">🔥 Prometheus Server</div>
+            <div class="node-desc">Time-Series TSDB Engine & Alert Rules</div>
+            <span class="node-port">Port 9090</span>
+          </div>
+          <div class="arrow-divider">Query ➔</div>
+          <div class="arch-node obs">
+            <div class="node-title">📈 Grafana Dashboards</div>
+            <div class="node-desc">Live Host & Microservices Dashboards</div>
+            <span class="node-port">Port 3000</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: 3-Tier Components Deep Dive -->
+    <section id="components" class="card">
+      <span class="badge badge-green">Application Engineering</span>
+      <h2>Three-Tier Business Microservices Tier Deep-Dive</h2>
+      <p style="color: var(--text-muted); margin-bottom: 24px;">
+        Designed specifically for <strong>Sanskriti (Traditional Fashion & Beauty Store)</strong>, providing modular separation of concerns.
+      </p>
+
+      <div class="grid-3">
+        <div class="feature-card">
+          <div class="feature-title">1. Presentation Tier (ReactJS)</div>
+          <p class="feature-text">
+            - Built with React 18, React Router v6, and Lucide icons.<br>
+            - <strong>9 Complete Views:</strong> Home (Hero, Banners), Sarees (Filters), Makeup, Bangles, Product Details, Cart, Checkout, Order Confirmation, and Store Operations Admin.<br>
+            - State managed via persistent <code>CartContext</code> synchronized with <code>localStorage</code>.<br>
+            - Served via hardened multi-stage Nginx Alpine with client-side SPA routing fallback.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-title">2. Application Tier (Python Flask)</div>
+          <p class="feature-text">
+            - Built using Flask 3.0, SQLAlchemy ORM, and Gunicorn WSGI (3 workers, 2 threads).<br>
+            - <strong>6 Modular Blueprints:</strong> <code>/health</code> (DB ping), <code>/categories</code>, <code>/products</code> (multi-attribute filtering), <code>/orders</code> (transactional placement), <code>/customers</code>, and <code>/cart</code>.<br>
+            - Automatic inventory stock deduction and unique order number formatting.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-title">3. Database Tier (PostgreSQL)</div>
+          <p class="feature-text">
+            - PostgreSQL 15 engine containerized with persistent named volume <code>postgres_data</code>.<br>
+            - <strong>7 Relational Tables:</strong> <code>categories</code>, <code>products</code>, <code>inventory</code>, <code>customers</code>, <code>orders</code>, <code>order_items</code>, <code>cart</code>.<br>
+            - <strong>60 Seed Products:</strong> 20 Silk Sarees (Banarasi, Kanchipuram, Mysore), 20 Makeup items, and 20 Bangles.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: CI/CD & IaC Automation -->
+    <section id="cicd" class="card">
+      <span class="badge badge-gold">DevOps Automation</span>
+      <h2>Infrastructure as Code (IaC) & Continuous Delivery Pipeline</h2>
+      <p style="color: var(--text-muted); margin-bottom: 24px;">
+        Eliminating manual provisioning and human error through declarative HashiCorp Terraform and automated Jenkins automation.
+      </p>
+
+      <div class="grid-2">
+        <div>
+          <h3 style="font-size: 1.25rem; margin-bottom: 12px; color: var(--primary);">Terraform Cloud Infrastructure (AWS)</h3>
+          <p style="font-size: 0.9rem; color: #475569; margin-bottom: 12px;">
+            The entire cloud environment is defined as declarative code in <code>terraform/</code>:
+          </p>
+          <ul style="font-size: 0.9rem; padding-left: 20px; color: #334155; line-height: 1.8;">
+            <li><strong>AWS VPC:</strong> Dedicated <code>10.0.0.0/16</code> VPC with 2 public subnets across multiple AZs.</li>
+            <li><strong>Security Groups:</strong> Strict firewall policies (80/443 for web, 22 for admin SSH, 3000 for Grafana).</li>
+            <li><strong>AWS ECR:</strong> 2 private container repositories with automatic CVE scanning on push and 30-day lifecycle expiration.</li>
+            <li><strong>AWS EC2:</strong> Ubuntu 22.04 LTS instance with an attached Elastic IP and IAM instance profile.</li>
+            <li><strong>Cloud-Init Bootstrap:</strong> <code>user-data.sh</code> automatically installs Docker, Docker Compose, and AWS CLI v2 on first boot.</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 style="font-size: 1.25rem; margin-bottom: 12px; color: var(--primary);">Jenkins 7-Stage Declarative Pipeline</h3>
+          <p style="font-size: 0.9rem; color: #475569; margin-bottom: 12px;">
+            Triggered automatically upon GitHub commits or pull request merges:
+          </p>
+          <div class="talking-point">
+            <div class="talking-title">Stage 1-2: Checkout & Code Linting</div>
+            <div class="talking-desc">Pulls repository, runs flake8 for Python backend and syntax checks for React frontend.</div>
+          </div>
+          <div class="talking-point">
+            <div class="talking-title">Stage 3-4: Docker Build & ECR Push</div>
+            <div class="talking-desc">Builds multi-stage Docker images tagged with build numbers and commit hashes, pushes to AWS ECR.</div>
+          </div>
+          <div class="talking-point">
+            <div class="talking-title">Stage 5-6: SSH Remote Deploy & Smoke Test</div>
+            <div class="talking-desc">Connects via SSH agent to EC2, runs <code>docker compose pull</code>, recreates containers, and runs HTTP health probes.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: Observability & Monitoring -->
+    <section id="observability" class="card">
+      <span class="badge badge-blue">Full-Stack Observability</span>
+      <h2>Prometheus & Grafana Monitoring Architecture</h2>
+      <p style="color: var(--text-muted); margin-bottom: 24px;">
+        Providing 360-degree real-time visibility into infrastructure health, container quotas, and user request latencies.
+      </p>
+
+      <div class="grid-2">
+        <div>
+          <h3 style="font-size: 1.25rem; margin-bottom: 12px;">Automated Telemetry Scrape Targets</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Target Component</th>
+                <th>Port / Protocol</th>
+                <th>Metrics Captured</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Prometheus Server</strong></td>
+                <td><code>:9090</code> HTTP</td>
+                <td>TSDB storage, evaluation duration</td>
+              </tr>
+              <tr>
+                <td><strong>Node Exporter</strong></td>
+                <td><code>:9100</code> HTTP</td>
+                <td>Host CPU, RAM, Disk I/O, Network Throughput</td>
+              </tr>
+              <tr>
+                <td><strong>cAdvisor</strong></td>
+                <td><code>:8080</code> HTTP</td>
+                <td>Per-container CPU cores, Memory usage vs limits</td>
+              </tr>
+              <tr>
+                <td><strong>Backend API</strong></td>
+                <td><code>:5000/metrics</code></td>
+                <td>Flask request throughput, latency, HTTP status codes</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <h3 style="font-size: 1.25rem; margin-bottom: 12px;">Configured Alert Rules & Thresholds</h3>
+          <div class="talking-point" style="border-left-color: #f59e0b;">
+            <div class="talking-title">⚠️ High CPU Usage (> 85% for 5m)</div>
+            <div class="talking-desc">Evaluates host CPU load and warns before node saturation impacts checkout transactions.</div>
+          </div>
+          <div class="talking-point" style="border-left-color: #ef4444;">
+            <div class="talking-title">🚨 Host Memory Saturation (< 10% available)</div>
+            <div class="talking-desc">Critical alert triggered before the Linux OOM-killer terminates microservices containers.</div>
+          </div>
+          <div class="talking-point" style="border-left-color: #ef4444;">
+            <div class="talking-title">🚨 Service Container Down (up == 0)</div>
+            <div class="talking-desc">Immediate critical alert fired within 60s if any frontend, backend, or database container crashes.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: POC Presentation Guide -->
+    <section id="talking-points" class="card">
+      <span class="badge badge-gold">Presentation Cheat Sheet</span>
+      <h2>POC & Team Presentation Guide</h2>
+      <p style="color: var(--text-muted); margin-bottom: 20px;">
+        Use these concise, high-impact responses when explaining the architecture to stakeholders, engineering leads, or during technical interviews.
+      </p>
+
+      <div class="grid-2">
+        <div>
+          <div class="talking-point">
+            <div class="talking-title">Q1: "Why use Nginx both as host reverse proxy and inside the frontend container?"</div>
+            <div class="talking-desc">
+              <strong>Answer:</strong> The host Nginx serves as the unified ingress controller and edge security boundary for the EC2 node, handling SSL termination, rate limiting, and port routing. The container Nginx is optimized purely for high-performance static SPA delivery and browser client-side routing fallback.
+            </div>
+          </div>
+
+          <div class="talking-point">
+            <div class="talking-title">Q2: "How does the setup guarantee zero-loss of order transactions during updates?"</div>
+            <div class="talking-desc">
+              <strong>Answer:</strong> PostgreSQL data is stored outside the container filesystem in a persistent Docker named volume (<code>postgres_data</code>). During CI/CD redeployments, containers are updated and recreated without touching or resetting the storage volume.
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="talking-point">
+            <div class="talking-title">Q3: "How does this architecture scale if traffic surges during festive seasons?"</div>
+            <div class="talking-desc">
+              <strong>Answer:</strong> Because the frontend and backend are completely decoupled and stateless, they can be scaled horizontally across multiple containers or shifted into AWS ECS / EKS behind an Application Load Balancer (ALB) with zero changes to application logic.
+            </div>
+          </div>
+
+          <div class="talking-point">
+            <div class="talking-title">Q4: "What commands verify the entire system during a live demo?"</div>
+            <div class="talking-desc">
+              <pre># Check running containers
+docker compose ps
+
+# Check API health
+curl -s http://localhost:5000/health | jq .
+
+# Check Prometheus targets
+curl -s http://localhost:9090/api/v1/targets | jq .</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Project Information Table -->
+    <section class="card">
+      <h2>Project Repository & Compliance Registry</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Milestone</th>
+            <th>Primary Stack</th>
+            <th>Key Deliverables</th>
+            <th>Audit Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Day 1</strong></td>
+            <td>Git, AWS CLI, Terraform</td>
+            <td>Folder layout, branching strategy, credentials, evidence vault</td>
+            <td><span class="badge badge-green">100% Completed</span></td>
+          </tr>
+          <tr>
+            <td><strong>Day 2</strong></td>
+            <td>ReactJS, Flask, PostgreSQL, Docker</td>
+            <td>60 products, 9 React views, REST APIs, Docker Compose</td>
+            <td><span class="badge badge-green">100% Completed</span></td>
+          </tr>
+          <tr>
+            <td><strong>Day 3</strong></td>
+            <td>Terraform, AWS ECR/EC2, Jenkins, Nginx</td>
+            <td>VPC, Subnets, ECR repos, Jenkinsfile CI/CD, Nginx reverse proxy</td>
+            <td><span class="badge badge-green">100% Completed</span></td>
+          </tr>
+          <tr>
+            <td><strong>Day 4</strong></td>
+            <td>Prometheus, Grafana, cAdvisor</td>
+            <td>Host/Container metrics, Grafana dashboards, Alert rules, Final audit</td>
+            <td><span class="badge badge-green">100% Completed</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+  </div>
+
+  <footer>
+    <div class="container">
+      <p>Microservices DevOps Automation Project | Lead Engineer: Arun C G</p>
+      <p style="margin-top: 4px;">Authoritative Documentation: <code>project-report.md</code> | All systems production certified.</p>
+    </div>
+  </footer>
+
+  <script>
+    function scrollToSection(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+# ==============================================================================
+# Prometheus Alerting Rules Specification
+# Microservices DevOps Automation Project
+# ==============================================================================
+
+groups:
+  - name: InfrastructureAlerts
+    rules:
+      - alert: HighCpuUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+          tier: infrastructure
+        annotations:
+          summary: "Host High CPU Usage Detected (Instance: {{ $labels.instance }})"
+          description: "CPU load exceeds 85% for more than 5 minutes. Current value: {{ $value | printf \"%.2f\" }}%."
+
+      - alert: HostMemoryUnderPressure
+        expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 10
+        for: 3m
+        labels:
+          severity: critical
+          tier: infrastructure
+        annotations:
+          summary: "Host Memory Saturation (Instance: {{ $labels.instance }})"
+          description: "Available RAM dropped below 10% capacity. Current available: {{ $value | printf \"%.2f\" }}%."
+
+      - alert: HighDiskSpaceUtilization
+        expr: ((node_filesystem_size_bytes{mountpoint="/"} - node_filesystem_free_bytes{mountpoint="/"}) / node_filesystem_size_bytes{mountpoint="/"}) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          tier: storage
+        annotations:
+          summary: "Root Filesystem Utilization High"
+          description: "Root disk partition usage is above 85%."
+
+  - name: MicroservicesContainerAlerts
+    rules:
+      - alert: ServiceContainerDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          tier: application
+        annotations:
+          summary: "Microservice Target Down (Job: {{ $labels.job }})"
+          description: "Prometheus target {{ $labels.instance }} has been unreachable for more than 1 minute."
+
+      - alert: ContainerMemorySaturation
+        expr: (container_memory_usage_bytes{name=~"ecommerce-.*"} / container_spec_memory_limit_bytes{name=~"ecommerce-.*"}) * 100 > 90
+        for: 2m
+        labels:
+          severity: warning
+          tier: containers
+        annotations:
+          summary: "Container Memory Threshold Breached"
+          description: "Container {{ $labels.name }} is using >90% of allocated memory limit."

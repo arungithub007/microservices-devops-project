@@ -1,0 +1,67 @@
+# ==============================================================================
+# Prometheus Core Configuration
+# Microservices DevOps Observability Architecture
+# ==============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager:9093'
+
+# Rule files for alerting
+rule_files:
+  - 'alert.rules.yml'
+
+# Scrape Configurations
+scrape_configs:
+  # 1. Prometheus Self-Monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          environment: 'production'
+          tier: 'observability'
+
+  # 2. Host Operating System Metrics via Node Exporter
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          environment: 'production'
+          instance: 'aws-ec2-production-host'
+          tier: 'infrastructure'
+
+  # 3. Container Runtime Telemetry via Google cAdvisor
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          environment: 'production'
+          tier: 'containers'
+
+  # 4. Backend Microservices REST API Telemetry
+  - job_name: 'backend-api'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['backend:5000']
+        labels:
+          environment: 'production'
+          service: 'ecommerce-backend'
+          tier: 'application'
+
+  # 5. Frontend Web Proxy Health Probe
+  - job_name: 'frontend-service'
+    metrics_path: '/health'
+    static_configs:
+      - targets: ['frontend:80']
+        labels:
+          environment: 'production'
+          service: 'ecommerce-frontend'
+          tier: 'presentation'

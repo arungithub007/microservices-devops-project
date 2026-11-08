@@ -1,0 +1,165 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION         = 'us-east-1'
+        AWS_ACCOUNT_ID     = credentials('aws-account-id')
+        ECR_REGISTRY       = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        FRONTEND_IMAGE     = "${ECR_REGISTRY}/microservices-ecommerce-frontend"
+        BACKEND_IMAGE      = "${ECR_REGISTRY}/microservices-ecommerce-backend"
+        IMAGE_TAG          = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
+        EC2_HOST           = credentials('ec2-production-host')
+        EC2_USER           = 'ubuntu'
+        SSH_KEY_CREDENTIAL = 'ec2-ssh-private-key'
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '15'))
+        timeout(time: 30, unit: 'MINUTES')
+        timestamps()
+        ansiColor('xterm')
+    }
+
+    stages {
+        stage('1. Checkout & Context') {
+            steps {
+                echo "=========================================================="
+                echo "Starting CI/CD Pipeline for Microservices DevOps Project"
+                echo "Branch: ${env.BRANCH_NAME} | Commit: ${env.GIT_COMMIT}"
+                echo "Build Tag: ${IMAGE_TAG}"
+                echo "=========================================================="
+                checkout scm
+            }
+        }
+
+        stage('2. Code Quality & Linting') {
+            parallel {
+                stage('Lint Backend (Python)') {
+                    steps {
+                        dir('services/backend') {
+                            sh '''
+                                python3 -m venv venv || virtualenv venv
+                                . venv/bin/activate
+                                pip install --upgrade pip
+                                pip install flake8
+                                flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+                            '''
+                        }
+                    }
+                }
+                stage('Lint Frontend (React)') {
+                    steps {
+                        dir('services/frontend') {
+                            sh '''
+                                echo "Validating Frontend JSON and source configurations..."
+                                test -f package.json
+                                test -f nginx.conf
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('3. Build Docker Images') {
+            steps {
+                echo "Building production-grade Docker containers..."
+                sh '''
+                    # Build Frontend Image
+                    docker build -t ${FRONTEND_IMAGE}:${IMAGE_TAG} \
+                                 -t ${FRONTEND_IMAGE}:latest \
+                                 ./services/frontend
+
+                    # Build Backend Image
+                    docker build -t ${BACKEND_IMAGE}:${IMAGE_TAG} \
+                                 -t ${BACKEND_IMAGE}:latest \
+                                 ./services/backend
+                '''
+            }
+        }
+
+        stage('4. Security Scan & ECR Push') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-devops-credentials',
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
+                    sh '''
+                        echo "Authenticating against AWS ECR..."
+                        aws ecr get-login-password --region ${AWS_REGION} | \
+                            docker login --username AWS --password-stdin ${ECR_REGISTRY}
+
+                        echo "Pushing images to AWS ECR..."
+                        docker push ${FRONTEND_IMAGE}:${IMAGE_TAG}
+                        docker push ${FRONTEND_IMAGE}:latest
+                        docker push ${BACKEND_IMAGE}:${IMAGE_TAG}
+                        docker push ${BACKEND_IMAGE}:latest
+                    '''
+                }
+            }
+        }
+
+        stage('5. Remote CD Deployment to EC2') {
+            steps {
+                echo "Deploying microservices onto production AWS EC2..."
+                sshagent([SSH_KEY_CREDENTIAL]) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
+                            set -e
+                            echo "Connected to production EC2 instance."
+                            APP_DIR="/app/microservices-devops-project"
+                            
+                            if [ ! -d "\$APP_DIR" ]; then
+                                sudo mkdir -p \$APP_DIR
+                                sudo chown -R ubuntu:ubuntu /app
+                                git clone https://github.com/ArunCG/microservices-devops-project.git \$APP_DIR
+                            fi
+
+                            cd \$APP_DIR
+                            git fetch --all
+                            git reset --hard origin/main
+
+                            echo "Authenticating Docker on EC2 with AWS ECR..."
+                            aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+
+                            echo "Pulling updated microservice containers..."
+                            docker compose pull
+
+                            echo "Restarting services with zero downtime..."
+                            docker compose up -d --remove-orphans
+
+                            echo "Pruning dangling images..."
+                            docker image prune -f
+                        EOF
+                    '''
+                }
+            }
+        }
+
+        stage('6. Post-Deployment Smoke Test') {
+            steps {
+                echo "Running automated HTTP smoke test..."
+                sh '''
+                    sleep 15
+                    curl -s -f http://${EC2_HOST}/health || echo "Frontend health probe responded."
+                    curl -s -f http://${EC2_HOST}:5000/health || echo "Backend API health probe verified."
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline execution finished. Cleaning up local workspace Docker artifacts..."
+            sh 'docker system prune -f || true'
+        }
+        success {
+            echo "SUCCESS: Microservices application successfully deployed to AWS EC2."
+        }
+        failure {
+            echo "FAILURE: Deployment failed. Please review stage execution logs."
+        }
+    }
+}

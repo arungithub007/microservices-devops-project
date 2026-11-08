@@ -1,7 +1,11 @@
 # ==============================================================================
-# Traditional Fashion & Beauty Store Microservices Architecture
+# Traditional Fashion & Beauty Store Microservices & Observability Architecture
 # Orchestration: Docker Compose
-# Services: Frontend (React/Nginx), Backend (Python Flask), Database (PostgreSQL)
+# Services:
+#   1. Database Tier: PostgreSQL 15
+#   2. Application Tier: Python Flask REST API
+#   3. Web Presentation Tier: ReactJS & Nginx Ingress
+#   4. Monitoring Tier: Prometheus, Grafana, Node Exporter, cAdvisor
 # ==============================================================================
 
 networks:
@@ -12,6 +16,12 @@ networks:
 volumes:
   postgres_data:
     name: ecommerce_postgres_data
+    driver: local
+  prometheus_data:
+    name: ecommerce_prometheus_data
+    driver: local
+  grafana_data:
+    name: ecommerce_grafana_data
     driver: local
 
 services:
@@ -89,7 +99,6 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      - "3000:80"
     networks:
       - ecommerce-network
     depends_on:
@@ -101,3 +110,87 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  # ----------------------------------------------------------------------------
+  # 4. Observability Tier: Prometheus Server
+  # ----------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: ecommerce-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+    ports:
+      - "9090:9090"
+    networks:
+      - ecommerce-network
+
+  # ----------------------------------------------------------------------------
+  # 5. Observability Tier: Grafana Dashboard Server
+  # ----------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: ecommerce-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards/json:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - ecommerce-network
+    depends_on:
+      - prometheus
+
+  # ----------------------------------------------------------------------------
+  # 6. Observability Tier: Node Exporter (Host Telemetry)
+  # ----------------------------------------------------------------------------
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: ecommerce-node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    networks:
+      - ecommerce-network
+
+  # ----------------------------------------------------------------------------
+  # 7. Observability Tier: Google cAdvisor (Container Telemetry)
+  # ----------------------------------------------------------------------------
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: ecommerce-cadvisor
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - ecommerce-network
